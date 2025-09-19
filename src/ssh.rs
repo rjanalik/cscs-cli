@@ -1,6 +1,7 @@
 use clap::{Args, Subcommand};
 use tokio::fs::{File, metadata};
 use tokio::io::AsyncWriteExt;
+use std::fmt::{self, Debug, Formatter};
 use std::time::SystemTime;
 use std::path::PathBuf;
 use reqwest;
@@ -23,17 +24,36 @@ enum SshCommands {
     Status,
 }
 
-#[derive(Serialize, Debug)]
+#[derive(Serialize)]
 struct SshserviceCredentials {
     username: String,
     password: String,
     otp: String,
 }
 
-#[derive(Deserialize, Debug)]
+impl Debug for SshserviceCredentials {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SshserviceCredentials")
+            .field("username", &self.username)
+            .field("password", &"******")
+            .field("otp", &"******")
+            .finish()
+    }
+}
+
+#[derive(Deserialize)]
 struct SshserviceResponse {
     public: String,
     private: String,
+}
+
+impl Debug for SshserviceResponse {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SshserviceResponse")
+            .field("public", &format!("{}...", &self.public[..32]))
+            .field("private", &format!("{}...", &self.private[..32]))
+            .finish()
+    }
 }
 
 pub async fn run(args: &SshArgs, config: &SshKeysConfig) -> anyhow::Result<()> {

@@ -3,16 +3,26 @@ use tokio::process::Command;
 //use std::io;
 //use std::io::Write;
 //use std::process::Stdio;
+use std::fmt::{self, Debug, Formatter};
 use anyhow::{anyhow, bail};
 use log::debug;
 
 //use crate::config::VpnConfig;
 
-#[derive(Debug)]
 pub struct Credentials {
     pub username: String,
     pub password: String,
     pub totp: Option<String>,
+}
+
+impl Debug for Credentials {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Credentials")
+            .field("username", &self.username)
+            .field("password", &"******")
+            .field("totp", &"******")
+            .finish()
+    }
 }
 
 pub async fn get_credentials(pass_service: String, username: String) -> anyhow::Result<Credentials> {
