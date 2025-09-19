@@ -1,10 +1,10 @@
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use directories::ProjectDirs;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::time::Duration;
 use duration_str::deserialize_duration;
-use anyhow::{anyhow, Context};
+use anyhow::Context;
 use log::info;
 
 #[derive(Debug, Default, Deserialize, Serialize)]
@@ -25,6 +25,7 @@ pub struct VpnConfig {
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct VpnClientConfig {
+    #[serde(deserialize_with = "deserialize_path")]
     pub path: PathBuf,
     pub connect_args: Vec<String>,
     pub disconnect_args: Vec<String>,
@@ -34,6 +35,7 @@ pub struct VpnClientConfig {
 
 #[derive(Debug, Default, Deserialize, Serialize)]
 pub struct SshKeysConfig {
+    #[serde(deserialize_with = "deserialize_path")]
     pub key_path: PathBuf,
     //#[serde(deserialize_with = "duration-str::deserialize_from_str", serialize_with = "duration-str::serialize_to_string", default = "default_key_validity_duration")]
     #[serde(deserialize_with = "deserialize_duration")]
@@ -60,10 +62,6 @@ impl Config {
                     .with_context(|| format!("Failed to parse config file at {:?}", config_file_path))?;
                 config.vpn = file_config.vpn;
                 config.ssh_keys = file_config.ssh_keys;
-
-                //Resolve path, e.g. "~"
-                config.ssh_keys.key_path = resolve_path(&config.ssh_keys.key_path)?;
-                config.vpn.client.path = resolve_path(&config.vpn.client.path)?;
             } else {
                 info!("No configuration file found at {:?}. Creating default.", config_file_path);
 
@@ -80,14 +78,17 @@ impl Config {
     }
 }
 
-fn resolve_path(path: &Path) -> anyhow::Result<PathBuf> {
-    let path_str = path.to_str().ok_or_else(|| {
-        anyhow!("Invalid path: contains non-UTF8 characters")
-    })?;
+//Resolve path, e.g. "~"
+fn deserialize_path<'de, D>(d: D) -> Result<PathBuf, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let path_str = String::deserialize(d)?;
 
     if path_str.starts_with("~/") {
         let home_dir = dirs::home_dir()
-            .ok_or_else(|| anyhow!("Could not determine home directory for path: {}", path.display()))?;
+            .ok_or_else(|| panic!("Could not determine home directory for path: {}", path_str))?;
+            //.unwrap_or_else(|| panic!("Could not determine home directory for path: {}", path_str));
 
         if path_str == "~" {
             Ok(home_dir)
@@ -97,6 +98,7 @@ fn resolve_path(path: &Path) -> anyhow::Result<PathBuf> {
             Ok(home_dir.join(relative_path))
         }
     } else {
-        Ok(path.to_path_buf()) // Return as is if no '~'
+        // Does not start wit '~' => Return as is
+        Ok(PathBuf::from(path_str))
     }
 }
