@@ -9,7 +9,7 @@ use serde::{Serialize, Deserialize};
 use anyhow::{anyhow, bail};
 use log::{info, debug};
 
-use crate::config::SshKeysConfig;
+use crate::config::{Config, SshKeysConfig};
 use crate::pass::get_credentials;
 
 #[derive(Args, Debug)]
@@ -56,11 +56,13 @@ impl Debug for SshserviceResponse {
     }
 }
 
-pub async fn run(args: &SshArgs, config: &SshKeysConfig) -> anyhow::Result<()> {
+pub async fn run(args: &SshArgs, config: &Config) -> anyhow::Result<()> {
+    let ssh_config = &config.ssh_keys;
+
     debug!{"ssh-key command"};
     match &args.command {
-        SshCommands::Gen => download_key(args, config).await?,
-        SshCommands::Status => status_key(args, config).await?,
+        SshCommands::Gen => download_key(args, &ssh_config).await?,
+        SshCommands::Status => status_key(args, &ssh_config).await?,
     }
 
     Ok(())

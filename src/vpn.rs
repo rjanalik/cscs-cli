@@ -8,7 +8,7 @@ use std::process::Stdio;
 use anyhow::{anyhow, bail};
 use log::debug;
 
-use crate::config::VpnConfig;
+use crate::config::{Config, VpnConfig};
 use crate::pass::get_credentials;
 
 #[derive(Args, Debug)]
@@ -24,12 +24,14 @@ enum VpnCommands {
     Status,
 }
 
-pub async fn run(args: &VpnArgs, config: &VpnConfig) -> anyhow::Result<()> {
+pub async fn run(args: &VpnArgs, config: &Config) -> anyhow::Result<()> {
+    let vpn_config = &config.vpn;
+
     debug!{"vpn command"};
     match &args.command {
-        VpnCommands::On => connect(args, config).await?,
-        VpnCommands::Off => disconnect(args, config).await?,
-        VpnCommands::Status => status(args, config).await?,
+        VpnCommands::On => connect(args, &vpn_config).await?,
+        VpnCommands::Off => disconnect(args, &vpn_config).await?,
+        VpnCommands::Status => status(args, &vpn_config).await?,
     }
 
     Ok(())

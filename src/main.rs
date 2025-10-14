@@ -38,8 +38,8 @@ async fn main() -> anyhow::Result<()> {
     }
 
     match &cli.command {
-        Commands::Vpn(args) => vpn::run(args, &config.vpn).await?,
-        Commands::SshKey(args) => ssh::run(args, &config.ssh_keys).await?,
+        Commands::Vpn(args) => vpn::run(args, &config).await?,
+        Commands::SshKey(args) => ssh::run(args, &config).await?,
     }
 
     Ok(())
