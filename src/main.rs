@@ -4,6 +4,7 @@ use std::io::Write;
 mod config;
 mod vpn;
 mod ssh;
+mod password_manager;
 mod pass;
 
 #[derive(Parser, Debug)]

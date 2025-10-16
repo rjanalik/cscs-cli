@@ -6,7 +6,7 @@ use anyhow::{anyhow, bail};
 use log::debug;
 
 use crate::config::{Config, VpnConfig};
-use crate::pass::get_credentials;
+use crate::password_manager::PasswordManager;
 
 #[derive(Args, Debug)]
 pub struct VpnArgs {
@@ -23,10 +23,11 @@ enum VpnCommands {
 
 pub fn run(args: &VpnArgs, config: &Config) -> anyhow::Result<()> {
     let vpn_config = &config.vpn;
+    let password_manager = &config.password_manager;
 
     debug!{"vpn command"};
     match &args.command {
-        VpnCommands::On => connect(args, &vpn_config)?,
+        VpnCommands::On => connect(args, &vpn_config, password_manager)?,
         VpnCommands::Off => disconnect(args, &vpn_config)?,
         VpnCommands::Status => status(args, &vpn_config)?,
     }
@@ -34,12 +35,12 @@ pub fn run(args: &VpnArgs, config: &Config) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn connect(args: &VpnArgs, config: &VpnConfig) -> anyhow::Result<()> {
+fn connect(args: &VpnArgs, config: &VpnConfig, password_manager: &Box<dyn PasswordManager>) -> anyhow::Result<()> {
     debug!("vpn on subcommand");
     debug!("{:?}", args);
     debug!("{:?}", config);
 
-    let credentials = get_credentials(config.pass_service.clone(), config.username.clone())?;
+    let credentials = password_manager.get_credentials(config.pass_service.clone(), config.username.clone())?;
 
     let mut command = Command::new(&config.client.path);
     command.args(&config.client.connect_args);

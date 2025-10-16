@@ -10,7 +10,7 @@ use anyhow::{anyhow, bail};
 use log::{info, debug};
 
 use crate::config::{Config, SshKeysConfig};
-use crate::pass::get_credentials;
+use crate::password_manager::PasswordManager;
 
 #[derive(Args, Debug)]
 pub struct SshArgs {
@@ -58,24 +58,25 @@ impl Debug for SshserviceResponse {
 
 pub fn run(args: &SshArgs, config: &Config) -> anyhow::Result<()> {
     let ssh_config = &config.ssh_keys;
+    let password_manager = &config.password_manager;
 
     debug!{"ssh-key command"};
     match &args.command {
-        SshCommands::Gen => download_key(args, &ssh_config)?,
+        SshCommands::Gen => download_key(args, &ssh_config, password_manager)?,
         SshCommands::Status => status_key(args, &ssh_config)?,
     }
 
     Ok(())
 }
 
-fn download_key(args: &SshArgs, config: &SshKeysConfig) -> anyhow::Result<()> {
+fn download_key(args: &SshArgs, config: &SshKeysConfig, password_manager: &Box<dyn PasswordManager>) -> anyhow::Result<()> {
     debug!("ssh-key gen subcommand");
     debug!("{:?}", args);
     debug!("{:?}", config);
 
     info!("Downloading SSH key from: {}", config.url);
 
-    let credentials = get_credentials(config.pass_service.clone(), config.username.clone())?;
+    let credentials = password_manager.get_credentials(config.pass_service.clone(), config.username.clone())?;
 
     let client = reqwest::blocking::Client::new();
     let request_body = SshserviceCredentials {

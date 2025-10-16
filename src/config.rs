@@ -7,10 +7,25 @@ use duration_str::deserialize_duration;
 use anyhow::Context;
 use log::info;
 
-#[derive(Debug, Default, Deserialize, Serialize)]
+use crate::password_manager::PasswordManager;
+use crate::pass::Pass;
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
+    #[serde(deserialize_with = "deserialize_password_manager")]
+    pub password_manager: Box<dyn PasswordManager>,
     pub vpn: VpnConfig,
     pub ssh_keys: SshKeysConfig,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            password_manager: Box::new(Pass),
+            vpn: VpnConfig::default(),
+            ssh_keys: SshKeysConfig::default(),
+        }
+    }
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
@@ -62,6 +77,7 @@ impl Config {
                     .with_context(|| format!("Failed to parse config file at {:?}", config_file_path))?;
                 config.vpn = file_config.vpn;
                 config.ssh_keys = file_config.ssh_keys;
+                config.password_manager = file_config.password_manager;
             } else {
                 info!("No configuration file found at {:?}. Creating default.", config_file_path);
 
@@ -100,5 +116,17 @@ where
     } else {
         // Does not start wit '~' => Return as is
         Ok(PathBuf::from(path_str))
+    }
+}
+
+fn deserialize_password_manager<'de, D>(d: D) -> Result<Box<dyn PasswordManager>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let password_manager_str = String::deserialize(d)?;
+
+    match password_manager_str.as_str() {
+        "pass" => Ok(Box::new(Pass)),
+        _ => panic!("Unsupported manager"),
     }
 }
