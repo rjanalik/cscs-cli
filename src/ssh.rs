@@ -1,6 +1,6 @@
 use clap::{Args, Subcommand};
-use tokio::fs::{File, metadata};
-use tokio::io::AsyncWriteExt;
+use std::fs::{File, metadata};
+use std::io::Write;
 use std::fmt::{self, Debug, Formatter};
 use std::time::SystemTime;
 use std::path::PathBuf;
@@ -56,28 +56,28 @@ impl Debug for SshserviceResponse {
     }
 }
 
-pub async fn run(args: &SshArgs, config: &Config) -> anyhow::Result<()> {
+pub fn run(args: &SshArgs, config: &Config) -> anyhow::Result<()> {
     let ssh_config = &config.ssh_keys;
 
     debug!{"ssh-key command"};
     match &args.command {
-        SshCommands::Gen => download_key(args, &ssh_config).await?,
-        SshCommands::Status => status_key(args, &ssh_config).await?,
+        SshCommands::Gen => download_key(args, &ssh_config)?,
+        SshCommands::Status => status_key(args, &ssh_config)?,
     }
 
     Ok(())
 }
 
-async fn download_key(args: &SshArgs, config: &SshKeysConfig) -> anyhow::Result<()> {
+fn download_key(args: &SshArgs, config: &SshKeysConfig) -> anyhow::Result<()> {
     debug!("ssh-key gen subcommand");
     debug!("{:?}", args);
     debug!("{:?}", config);
 
     info!("Downloading SSH key from: {}", config.url);
 
-    let credentials = get_credentials(config.pass_service.clone(), config.username.clone()).await?;
+    let credentials = get_credentials(config.pass_service.clone(), config.username.clone())?;
 
-    let client = reqwest::Client::new();
+    let client = reqwest::blocking::Client::new();
     let request_body = SshserviceCredentials {
         username: credentials.username,
         password: credentials.password,
@@ -88,62 +88,61 @@ async fn download_key(args: &SshArgs, config: &SshKeysConfig) -> anyhow::Result<
         .header("Content-Type", "application/json")
         .header("Accept", "application/json")
         .json(&request_body)
-        .send()
-        .await?;
+        .send()?;
 
     if !response.status().is_success() {
-        //let error_text = response.text().await.unwrap_or_else(|_| "Failed to read error response".to_string());
+        //let error_text = response.text().unwrap_or_else(|_| "Failed to read error response".to_string());
         //bail!("Failed to download SSH key. HTTP status: {}. Response: {}", response.status(), error_text);
     }
 
-    let response_struct: SshserviceResponse = response.json().await?;
-    //let response_struct = response.text().await?;
+    let response_struct: SshserviceResponse = response.json()?;
+    //let response_struct = response.text()?;
     debug!("{:?}", response_struct);
 
     let private_key_path = config.key_path.clone();
     let public_key_path = PathBuf::from(format!("{}-cert.pub", private_key_path.display()));
 
     if let Some(parent) = private_key_path.parent() {
-        tokio::fs::create_dir_all(parent).await?;
+        std::fs::create_dir_all(parent)?;
     }
 
     // Save public key
-    let mut public_file = File::create(&public_key_path).await?;
+    let mut public_file = File::create(&public_key_path)?;
     info!("Saving public key in {}", public_key_path.display());
-    public_file.write_all(response_struct.public.as_bytes()).await?;
+    public_file.write_all(response_struct.public.as_bytes())?;
     #[cfg(unix)] // Only apply on Unix-like systems
     {
         info!("Setting permissions for public key to 0o644: {}", public_key_path.display());
         use std::os::unix::fs::PermissionsExt;
-        let mut permissions = public_file.metadata().await?.permissions();
+        let mut permissions = public_file.metadata()?.permissions();
         permissions.set_mode(0o644); // Read/write for owner only
-        tokio::fs::set_permissions(&public_key_path, permissions).await?;
+        std::fs::set_permissions(&public_key_path, permissions)?;
     }
     info!("Public SSH key successfully downloaded to {}", public_key_path.display());
 
     // Save private key
-    let mut private_file = File::create(&private_key_path).await?;
+    let mut private_file = File::create(&private_key_path)?;
     info!("Saving private key in {}", private_key_path.display());
-    private_file.write_all(response_struct.private.as_bytes()).await?;
+    private_file.write_all(response_struct.private.as_bytes())?;
     #[cfg(unix)] // Only apply on Unix-like systems
     {
         info!("Setting permissions for private key to 0o600: {}", private_key_path.display());
         use std::os::unix::fs::PermissionsExt;
-        let mut permissions = private_file.metadata().await?.permissions();
+        let mut permissions = private_file.metadata()?.permissions();
         permissions.set_mode(0o600); // Read/write for owner only
-        tokio::fs::set_permissions(&private_key_path, permissions).await?;
+        std::fs::set_permissions(&private_key_path, permissions)?;
     }
     println!("Private SSH key successfully downloaded to: {}", private_key_path.display());
 
     Ok(())
 }
 
-async fn status_key(args: &SshArgs, config: &SshKeysConfig) -> anyhow::Result<()> {
+fn status_key(args: &SshArgs, config: &SshKeysConfig) -> anyhow::Result<()> {
     debug!("ssh-key status subcommand");
     debug!("{:?}", args);
     debug!("{:?}", config);
 
-    let metadata_result = metadata(&config.key_path).await;
+    let metadata_result = metadata(&config.key_path);
     let file_metadata = match metadata_result {
         Ok(meta) => {
             if meta.is_file() {

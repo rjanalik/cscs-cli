@@ -1,10 +1,7 @@
 use clap::{Args, Subcommand};
-//use tokio::process::{Command, Stdio};
-use tokio::process::{Command};
-use tokio::io::AsyncWriteExt;
 use std::io;
 use std::io::Write;
-use std::process::Stdio;
+use std::process::{Command, Stdio};
 use anyhow::{anyhow, bail};
 use log::debug;
 
@@ -24,25 +21,25 @@ enum VpnCommands {
     Status,
 }
 
-pub async fn run(args: &VpnArgs, config: &Config) -> anyhow::Result<()> {
+pub fn run(args: &VpnArgs, config: &Config) -> anyhow::Result<()> {
     let vpn_config = &config.vpn;
 
     debug!{"vpn command"};
     match &args.command {
-        VpnCommands::On => connect(args, &vpn_config).await?,
-        VpnCommands::Off => disconnect(args, &vpn_config).await?,
-        VpnCommands::Status => status(args, &vpn_config).await?,
+        VpnCommands::On => connect(args, &vpn_config)?,
+        VpnCommands::Off => disconnect(args, &vpn_config)?,
+        VpnCommands::Status => status(args, &vpn_config)?,
     }
 
     Ok(())
 }
 
-async fn connect(args: &VpnArgs, config: &VpnConfig) -> anyhow::Result<()> {
+fn connect(args: &VpnArgs, config: &VpnConfig) -> anyhow::Result<()> {
     debug!("vpn on subcommand");
     debug!("{:?}", args);
     debug!("{:?}", config);
 
-    let credentials = get_credentials(config.pass_service.clone(), config.username.clone()).await?;
+    let credentials = get_credentials(config.pass_service.clone(), config.username.clone())?;
 
     let mut command = Command::new(&config.client.path);
     command.args(&config.client.connect_args);
@@ -50,7 +47,7 @@ async fn connect(args: &VpnArgs, config: &VpnConfig) -> anyhow::Result<()> {
 
     command.stdin(Stdio::piped());
 
-    debug!("calling command: {:?}", command.as_std());
+    debug!("calling command: {:?}", command);
     let mut child = command.spawn()?;
 
     let input_string = config.client.connect_stdin_template
@@ -62,9 +59,9 @@ async fn connect(args: &VpnArgs, config: &VpnConfig) -> anyhow::Result<()> {
     let mut child_stdin = child.stdin.take().ok_or_else(|| {
         anyhow!("Failed to open stdin for child process.")
     })?;
-    child_stdin.write_all(input_string.as_bytes()).await?;
+    child_stdin.write_all(input_string.as_bytes())?;
 
-    let output = child.wait_with_output().await?;
+    let output = child.wait_with_output()?;
     if output.status.success() {
         println!("VPN connected!");
         if !output.stdout.is_empty() {
@@ -85,7 +82,7 @@ async fn connect(args: &VpnArgs, config: &VpnConfig) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn disconnect(args: &VpnArgs, config: &VpnConfig) -> anyhow::Result<()> {
+fn disconnect(args: &VpnArgs, config: &VpnConfig) -> anyhow::Result<()> {
     debug!("vpn off subcommand");
     debug!("{:?}", args);
     debug!("{:?}", config);
@@ -93,8 +90,8 @@ async fn disconnect(args: &VpnArgs, config: &VpnConfig) -> anyhow::Result<()> {
     let mut command = Command::new(&config.client.path);
     command.args(&config.client.disconnect_args);
 
-    debug!("calling command: {:?}", command.as_std());
-    let output = command.output().await?;
+    debug!("calling command: {:?}", command);
+    let output = command.output()?;
     if output.status.success() {
         println!("VPN disconnected!");
         if !output.stdout.is_empty() {
@@ -115,7 +112,7 @@ async fn disconnect(args: &VpnArgs, config: &VpnConfig) -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn status(args: &VpnArgs, config: &VpnConfig) -> anyhow::Result<()> {
+fn status(args: &VpnArgs, config: &VpnConfig) -> anyhow::Result<()> {
     debug!("vpn status subcommand");
     debug!("{:?}", args);
     debug!("{:?}", config);
@@ -123,8 +120,8 @@ async fn status(args: &VpnArgs, config: &VpnConfig) -> anyhow::Result<()> {
     let mut command = Command::new(&config.client.path);
     command.args(&config.client.status_args);
 
-    debug!("calling command: {:?}", command.as_std());
-    let output = command.output().await?;
+    debug!("calling command: {:?}", command);
+    let output = command.output()?;
     if output.status.success() {
         if !output.stdout.is_empty() {
             println!("VPN status stdout:");

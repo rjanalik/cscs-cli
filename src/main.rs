@@ -21,8 +21,7 @@ enum Commands {
     SshKey(ssh::SshArgs),
 }
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<()> {
     env_logger::builder()
         .format(|buf, record| {
             writeln!(buf, "{}", record.args())
@@ -38,8 +37,8 @@ async fn main() -> anyhow::Result<()> {
     }
 
     match &cli.command {
-        Commands::Vpn(args) => vpn::run(args, &config).await?,
-        Commands::SshKey(args) => ssh::run(args, &config).await?,
+        Commands::Vpn(args) => vpn::run(args, &config)?,
+        Commands::SshKey(args) => ssh::run(args, &config)?,
     }
 
     Ok(())

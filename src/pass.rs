@@ -1,5 +1,4 @@
-use tokio::process::Command;
-//use tokio::io::AsyncWriteExt;
+use std::process::Command;
 //use std::io;
 //use std::io::Write;
 //use std::process::Stdio;
@@ -25,7 +24,7 @@ impl Debug for Credentials {
     }
 }
 
-pub async fn get_credentials(pass_service: String, username: String) -> anyhow::Result<Credentials> {
+pub fn get_credentials(pass_service: String, username: String) -> anyhow::Result<Credentials> {
     debug!("Getting credentials from pass: service {}, username {}", pass_service, username);
 
     let pass_name = format!("{}/{}", pass_service, username);
@@ -36,7 +35,7 @@ pub async fn get_credentials(pass_service: String, username: String) -> anyhow::
     let mut password_command = Command::new("pass");
     password_command.arg(&pass_name);
 
-    let password_output = password_command.output().await?;
+    let password_output = password_command.output()?;
     if password_output.status.success() {
         let password_stdout_string = String::from_utf8(password_output.stdout)?;
         password = password_stdout_string
@@ -54,7 +53,7 @@ pub async fn get_credentials(pass_service: String, username: String) -> anyhow::
     totp_command.arg("otp");
     totp_command.arg(&pass_name);
 
-    let totp_output = totp_command.output().await?;
+    let totp_output = totp_command.output()?;
     if totp_output.status.success() {
         let totp_stdout_string = String::from_utf8(totp_output.stdout)?;
         let totp_string = totp_stdout_string
