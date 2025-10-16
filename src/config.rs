@@ -7,13 +7,17 @@ use duration_str::deserialize_duration;
 use anyhow::Context;
 use log::info;
 
+use crate::cisco_secure_connect::CiscoSecureConnect;
 use crate::password_manager::PasswordManager;
 use crate::pass::Pass;
+use crate::vpn::VpnApp;
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Config {
     #[serde(deserialize_with = "deserialize_password_manager")]
     pub password_manager: Box<dyn PasswordManager>,
+    #[serde(deserialize_with = "deserialize_vpn_app")]
+    pub vpn_app: Box<dyn VpnApp>,
     pub vpn: VpnConfig,
     pub ssh_keys: SshKeysConfig,
 }
@@ -22,6 +26,7 @@ impl Default for Config {
     fn default() -> Self {
         Config {
             password_manager: Box::new(Pass),
+            vpn_app: Box::new(CiscoSecureConnect),
             vpn: VpnConfig::default(),
             ssh_keys: SshKeysConfig::default(),
         }
@@ -78,6 +83,7 @@ impl Config {
                 config.vpn = file_config.vpn;
                 config.ssh_keys = file_config.ssh_keys;
                 config.password_manager = file_config.password_manager;
+                config.vpn_app = file_config.vpn_app;
             } else {
                 info!("No configuration file found at {:?}. Creating default.", config_file_path);
 
@@ -127,6 +133,18 @@ where
 
     match password_manager_str.as_str() {
         "pass" => Ok(Box::new(Pass)),
+        _ => panic!("Unsupported manager"),
+    }
+}
+
+fn deserialize_vpn_app<'de, D>(d: D) -> Result<Box<dyn VpnApp>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let vpn_str = String::deserialize(d)?;
+
+    match vpn_str.as_str() {
+        "cisco" => Ok(Box::new(CiscoSecureConnect)),
         _ => panic!("Unsupported manager"),
     }
 }

@@ -6,6 +6,7 @@ mod vpn;
 mod ssh;
 mod password_manager;
 mod pass;
+mod cisco_secure_connect;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
