@@ -19,20 +19,19 @@ impl VpnApp for CiscoSecureConnect {
 
         let credentials = password_manager.get_credentials(config.pass_service.clone(), config.username.clone())?;
 
-        let mut command = Command::new(&config.client.path);
-        command.args(&config.client.connect_args);
-        command.arg(&config.host);
+        let mut command = Command::new(&config.cisco.path);
+        command.args(["-s", "connect", &config.host]);
 
         command.stdin(Stdio::piped());
 
         debug!("calling command: {:?}", command);
         let mut child = command.spawn()?;
 
-        let input_string = config.client.connect_stdin_template
-            .replace("{username}", &credentials.username)
-            .replace("{domain}", &config.domain)
-            .replace("{password}", &credentials.password)
-            .replace("{totp}", &credentials.totp.unwrap());
+        let input_string = format!("{}@{}\n{}\n{}\n",
+            &credentials.username,
+            &config.domain,
+            &credentials.password,
+            &credentials.totp.unwrap());
 
         let mut child_stdin = child.stdin.take().ok_or_else(|| {
             anyhow!("Failed to open stdin for child process.")
@@ -65,8 +64,8 @@ impl VpnApp for CiscoSecureConnect {
         debug!("{:?}", args);
         debug!("{:?}", config);
 
-        let mut command = Command::new(&config.client.path);
-        command.args(&config.client.disconnect_args);
+        let mut command = Command::new(&config.cisco.path);
+        command.args(["-s", "disconnect"]);
 
         debug!("calling command: {:?}", command);
         let output = command.output()?;
@@ -95,8 +94,8 @@ impl VpnApp for CiscoSecureConnect {
         debug!("{:?}", args);
         debug!("{:?}", config);
 
-        let mut command = Command::new(&config.client.path);
-        command.args(&config.client.status_args);
+        let mut command = Command::new(&config.cisco.path);
+        command.args(["-s", "status"]);
 
         debug!("calling command: {:?}", command);
         let output = command.output()?;

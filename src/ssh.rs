@@ -58,7 +58,7 @@ impl Debug for SshserviceResponse {
 
 pub fn run(args: &SshArgs, config: &Config) -> anyhow::Result<()> {
     let ssh_config = &config.ssh_keys;
-    let password_manager = &config.password_manager;
+    let password_manager = &config.password_manager.provider;
 
     debug!{"ssh-key command"};
     match &args.command {

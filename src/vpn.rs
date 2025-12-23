@@ -36,15 +36,15 @@ impl Serialize for dyn VpnApp {
 }
 
 pub fn run(args: &VpnArgs, config: &Config) -> anyhow::Result<()> {
-    let vpn_app = &config.vpn_app;
+    let vpn_provider = &config.vpn.provider;
     let vpn_config = &config.vpn;
-    let password_manager = &config.password_manager;
+    let password_manager = &config.password_manager.provider;
 
     debug!{"vpn command"};
     match &args.command {
-        VpnCommands::On => vpn_app.connect(args, &vpn_config, password_manager)?,
-        VpnCommands::Off => vpn_app.disconnect(args, &vpn_config)?,
-        VpnCommands::Status => vpn_app.status(args, &vpn_config)?,
+        VpnCommands::On => vpn_provider.connect(args, &vpn_config, password_manager)?,
+        VpnCommands::Off => vpn_provider.disconnect(args, &vpn_config)?,
+        VpnCommands::Status => vpn_provider.status(args, &vpn_config)?,
     }
 
     Ok(())

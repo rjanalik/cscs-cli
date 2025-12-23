@@ -10,47 +10,71 @@ use log::info;
 use crate::cisco_secure_connect::CiscoSecureConnect;
 use crate::password_manager::PasswordManager;
 use crate::pass::Pass;
+use crate::keepassxc::KeePassXC;
 use crate::vpn::VpnApp;
 
-#[derive(Debug, Deserialize, Serialize)]
+#[derive(Debug, Default, Deserialize, Serialize)]
 pub struct Config {
-    #[serde(deserialize_with = "deserialize_password_manager")]
-    pub password_manager: Box<dyn PasswordManager>,
-    #[serde(deserialize_with = "deserialize_vpn_app")]
-    pub vpn_app: Box<dyn VpnApp>,
+    pub password_manager: PasswordManagerConfig,
     pub vpn: VpnConfig,
     pub ssh_keys: SshKeysConfig,
 }
 
-impl Default for Config {
+#[derive(Debug, Deserialize, Serialize)]
+pub struct PasswordManagerConfig {
+    #[serde(deserialize_with = "deserialize_password_manager")]
+    pub provider: Box<dyn PasswordManager>,
+    pub pass: PasswordManagerPassConfig,
+    pub keepassxc: PasswordManagerKeePassXCConfig,
+}
+
+impl Default for PasswordManagerConfig {
     fn default() -> Self {
-        Config {
-            password_manager: Box::new(Pass),
-            vpn_app: Box::new(CiscoSecureConnect),
-            vpn: VpnConfig::default(),
-            ssh_keys: SshKeysConfig::default(),
+        PasswordManagerConfig {
+            provider: Box::new(Pass),
+            pass: PasswordManagerPassConfig::default(),
+            keepassxc: PasswordManagerKeePassXCConfig::default(),
         }
     }
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
+pub struct PasswordManagerPassConfig {
+}
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct PasswordManagerKeePassXCConfig {
+}
+
+#[derive(Debug, Deserialize, Serialize)]
 pub struct VpnConfig {
-    pub client: VpnClientConfig,
+    #[serde(deserialize_with = "deserialize_vpn_provider")]
+    pub provider: Box<dyn VpnApp>,
+    pub cisco: VpnCiscoConfig,
     pub pass_service: String,
     pub username: String,
     pub domain: String,
     pub host: String,
 }
 
+impl Default for VpnConfig {
+    fn default() -> Self {
+        VpnConfig {
+            provider: Box::new(CiscoSecureConnect),
+            cisco: VpnCiscoConfig::default(),
+            pass_service: String::default(),
+            username: String::default(),
+            domain: String::default(),
+            host: String::default(),
+        }
+    }
+}
+
 
 #[derive(Debug, Default, Deserialize, Serialize)]
-pub struct VpnClientConfig {
+pub struct VpnCiscoConfig {
     #[serde(deserialize_with = "deserialize_path")]
     pub path: PathBuf,
-    pub connect_args: Vec<String>,
-    pub disconnect_args: Vec<String>,
-    pub status_args: Vec<String>,
-    pub connect_stdin_template: String,
 }
 
 #[derive(Debug, Default, Deserialize, Serialize)]
@@ -83,7 +107,6 @@ impl Config {
                 config.vpn = file_config.vpn;
                 config.ssh_keys = file_config.ssh_keys;
                 config.password_manager = file_config.password_manager;
-                config.vpn_app = file_config.vpn_app;
             } else {
                 info!("No configuration file found at {:?}. Creating default.", config_file_path);
 
@@ -133,11 +156,12 @@ where
 
     match password_manager_str.as_str() {
         "pass" => Ok(Box::new(Pass)),
+        "keepassxc" => Ok(Box::new(KeePassXC)),
         _ => panic!("Unsupported manager"),
     }
 }
 
-fn deserialize_vpn_app<'de, D>(d: D) -> Result<Box<dyn VpnApp>, D::Error>
+fn deserialize_vpn_provider<'de, D>(d: D) -> Result<Box<dyn VpnApp>, D::Error>
 where
     D: Deserializer<'de>,
 {
