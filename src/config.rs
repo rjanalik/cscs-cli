@@ -84,7 +84,12 @@ pub struct SshKeysConfig {
     //#[serde(deserialize_with = "duration-str::deserialize_from_str", serialize_with = "duration-str::serialize_to_string", default = "default_key_validity_duration")]
     #[serde(deserialize_with = "deserialize_duration")]
     pub key_validity: Duration,
+    pub key_validity_str: String,
+    pub pkce_client_id: String,
     pub url: String,
+    pub issuer_url: String,
+    pub keys_url: String,
+    pub sign_url: String,
     pub pass_service: String,
     pub username: String,
 }

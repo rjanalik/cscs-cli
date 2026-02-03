@@ -2,6 +2,7 @@ use clap::{Parser, Subcommand};
 use std::io::Write;
 
 mod config;
+mod oidc;
 mod vpn;
 mod ssh;
 mod password_manager;
