@@ -31,7 +31,6 @@ pub fn oidc_get_access_token(config: &SshKeysConfig) -> anyhow::Result<String> {
         .redirect(reqwest::redirect::Policy::none()) // Recommended for OIDC security
         .build()?;
 
-    //let issuer_url = IssuerUrl::new("https://auth.cscs.ch/auth/realms/cscs".to_string())?;
     let issuer_url = IssuerUrl::new(config.issuer_url.clone())?;
 
     // Discovery takes a reference to the client
@@ -49,18 +48,17 @@ pub fn oidc_get_access_token(config: &SshKeysConfig) -> anyhow::Result<String> {
     let (auth_url, csrf_token, nonce) = client
         .authorize_url(
             AuthenticationFlow::<CoreResponseType>::AuthorizationCode,
-            CsrfToken::new_random, // Argument 2: State/CSRF provider
-            Nonce::new_random,     // Argument 3: Nonce provider
+            CsrfToken::new_random, // State/CSRF provider
+            Nonce::new_random,     // Nonce provider
         )
         .add_scope(Scope::new("openid".to_string()))
         .set_pkce_challenge(pkce_challenge)
         .url();
 
-    println!("Log in here: {}", auth_url);
-
     // Open the browser!
     if let Err(e) = webbrowser::open(auth_url.as_str()) {
         eprintln!("Failed to open browser automatically: {}", e);
+        println!("Browser window did not open automatically. Log in here :\n{}", auth_url);
     }
 
     // Simple listener
@@ -87,7 +85,7 @@ pub fn oidc_get_access_token(config: &SshKeysConfig) -> anyhow::Result<String> {
         .map(|(_, value)| value.into_owned())
         .context("No code found")?;
 
-    let response = "HTTP/1.1 200 OK\r\n\r\nSuccess!";
+    let response = "HTTP/1.1 200 OK\r\n\r\nAuthentication successful.\nYou can return to the terminal.";
     stream.write_all(response.as_bytes())?;
 
     // Pass the reference to the client here too
